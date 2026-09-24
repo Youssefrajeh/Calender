@@ -6,5 +6,5 @@
   "bgMode": { "type": "dropdown", "text": "Background", "value": 0, "items": ["Photos (auto-change)", "Rotating gradients", "Static"] },
   "bgUrls": { "type": "textbox", "text": "Your image URLs (comma separated, optional)", "value": "" },
   "bgMinutes": { "type": "slider", "text": "Change every (minutes)", "value": 10, "min": 1, "max": 60, "step": 1 },
-  "bgDim": { "type": "slider", "text": "Background dimming (%)", "value": 30, "min": 0, "max": 90, "step": 5 }
+  "bgDim": { "type": "slider", "text": "Background dimming (%)", "value": 50, "min": 0, "max": 90, "step": 5 }
 }

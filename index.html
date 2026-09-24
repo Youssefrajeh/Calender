@@ -8,10 +8,10 @@
   :root {
     --accent: #6ea0ff;
     --text: #ebeef5;
-    --muted: #6e768c;
-    --faint: #3a4054;
-    --weekend: #96a5d2;
-    --panel: rgba(255,255,255,.04);
+    --muted: #a6afc8;
+    --faint: #5f6885;
+    --weekend: #a9b8e6;
+    --panel: rgba(10,12,24,.45);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -21,6 +21,7 @@
     font-family: "Segoe UI", system-ui, sans-serif;
     display: flex; align-items: center; justify-content: flex-end;
     gap: 5vh; padding: 0 6vw; user-select: none;
+    text-shadow: 0 1px 10px rgba(0,0,0,.5);
   }
   body[data-align="left"] { justify-content: flex-start; flex-direction: row-reverse; }
   body[data-align="center"] { justify-content: center; }
@@ -73,7 +74,7 @@
   .status.err { color: #ffb36e; }
   .bg { position: fixed; inset: 0; z-index: -2; opacity: 0; transition: opacity 2.5s ease; background-size: cover; background-position: center; }
   .bg.on { opacity: 1; }
-  #dim { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: rgba(5, 7, 14, var(--dim, .3)); }
+  #dim { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: rgba(5, 7, 14, var(--dim, .5)); }
   #user { position: fixed; top: 3vh; right: 3vw; display: flex; align-items: center; gap: 1.4vh;
           background: var(--panel); border-radius: 5vh; padding: .8vh 1.6vh .8vh .8vh; font-size: 2vh; }
   #user:empty { display: none; }
@@ -205,9 +206,16 @@
       const lb = el('div', 'linkbox');
       lb.appendChild(el('b', null, 'Signed in. Your wallpaper link:'));
       const inp = el('input'); inp.readOnly = true; inp.value = state.setupLink;
+      const hide = () => { state.setupLink = null; renderPanel(); };
       const cp = el('button', null, 'Copy link');
-      cp.onclick = async () => { inp.select(); try { await navigator.clipboard.writeText(inp.value); cp.textContent = 'Copied'; } catch (e) { document.execCommand('copy'); } };
-      lb.append(inp, cp, el('small', null, 'Paste it into Lively (Add wallpaper > URL). Keep it private: anyone with it can see and edit your calendar.'));
+      cp.onclick = async () => {
+        inp.select();
+        try { await navigator.clipboard.writeText(inp.value); } catch (e) { document.execCommand('copy'); }
+        cp.textContent = 'Copied. Hiding…'; setTimeout(hide, 3000);
+      };
+      const done = el('button', null, 'Hide'); done.style.marginLeft = '1vh'; done.style.background = 'rgba(255,255,255,.12)'; done.style.color = 'var(--text)';
+      done.onclick = hide;
+      lb.append(inp, cp, done, el('small', null,'Paste it into Lively (Add wallpaper > URL). Keep it private: anyone with it can see and edit your calendar.'));
       box.appendChild(lb);
     }
     if (state.needLogin) {
@@ -285,6 +293,8 @@
   if (HOSTED && KEY && new URLSearchParams(location.search).get('setup')) {
     state.setupLink = location.origin + '/?key=' + encodeURIComponent(KEY);
     history.replaceState(null, '', '/?key=' + encodeURIComponent(KEY)); // drop setup flag
+    // The link is a secret: never leave it sitting on the desktop.
+    setTimeout(() => { state.setupLink = null; renderPanel(); }, 60000);
   }
 
   async function api(path, opts = {}) {
