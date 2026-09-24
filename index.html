@@ -255,14 +255,13 @@
     box.replaceChildren();
     const u = state.user;
     if (!u || state.needLogin) return;
-    const label = u.name || u.email || 'Signed in';
+    const label = u.name || (u.email ? u.email.split('@')[0] : 'Signed in'); // never show the full email
     if (u.picture) {
       const img = el('img'); img.src = u.picture; img.alt = ''; img.referrerPolicy = 'no-referrer';
       img.onerror = () => img.replaceWith(el('div', 'av', label[0].toUpperCase()));
       box.appendChild(img);
     } else box.appendChild(el('div', 'av', label[0].toUpperCase()));
     const who = el('div', 'who', label);
-    if (u.name && u.email) who.appendChild(el('small', null, u.email));
     const out = el('button', null, 'Sign out'); out.onclick = signOut;
     box.append(who, out);
   }
