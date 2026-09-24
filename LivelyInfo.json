@@ -1,0 +1,9 @@
+{
+  "AppVersion": "1.0.0.0",
+  "Title": "Calendar",
+  "Desc": "Live monthly calendar with clock. Updates automatically at midnight.",
+  "Author": "",
+  "License": "",
+  "Type": 1,
+  "FileName": "index.html"
+}
