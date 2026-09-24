@@ -1,4 +1,6 @@
-client_secret.json
+client_secret*.json
 token.json
 __pycache__/
 *.pyc
+.vercel/
+.env*

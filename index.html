@@ -201,9 +201,27 @@
   function renderAll() { renderCalendar(); renderPanel(); }
 
   /* ---------- data ---------- */
-  async function api(path, opts) {
-    const r = await fetch(API + path, opts);
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+  // Hosted (https) mode: same-origin serverless API, authenticated with ?key=... from the URL.
+  const HOSTED = /^https?:$/.test(location.protocol) && !['localhost', '127.0.0.1'].includes(location.hostname);
+  let KEY = '';
+  try {
+    KEY = new URLSearchParams(location.search).get('key') || localStorage.getItem('calKey') || '';
+    if (KEY) localStorage.setItem('calKey', KEY);
+  } catch (e) { /* storage unavailable */ }
+
+  async function api(path, opts = {}) {
+    let url = API + path;
+    const headers = Object.assign({}, opts.headers);
+    if (HOSTED) {
+      url = '/api/cal' + (path.includes('?') ? path.slice(path.indexOf('?')) : '');
+      headers['X-Key'] = KEY;
+    }
+    const r = await fetch(url, Object.assign({}, opts, { headers }));
+    if (!r.ok) {
+      const err = new Error((await r.json().catch(() => ({}))).error || r.status);
+      err.status = r.status;
+      throw err;
+    }
     return r.json();
   }
 
@@ -215,7 +233,9 @@
       state.error = null;
     } catch (e) {
       state.events = [];
-      state.error = 'Calendar helper not reachable. Start gcal_server.py (see README).';
+      state.error = e.status === 401 ? 'Access key missing or wrong. Open the page with ?key=YOUR_KEY.'
+        : HOSTED ? 'Could not load events: ' + e.message
+        : 'Calendar helper not reachable. Start gcal_server.py (see README).';
     }
     renderAll();
   }
