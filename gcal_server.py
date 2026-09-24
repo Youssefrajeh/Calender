@@ -157,6 +157,23 @@ def create_event(d):
     return gapi("POST", "/calendars/primary/events", body=ev)
 
 
+_login_thread = None
+
+
+def signed_in():
+    return os.path.exists(TOKEN_FILE)
+
+
+def start_login():
+    """Run the browser sign-in in the background (triggered by the page's button)."""
+    global _login_thread
+    if _login_thread and _login_thread.is_alive():
+        return {"started": False, "reason": "already in progress"}
+    _login_thread = threading.Thread(target=login, daemon=True)
+    _login_thread.start()
+    return {"started": True}
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     def _origin_ok(self):
         # Lively pages send "null" (file://) or a localhost origin; reject real websites.
@@ -180,6 +197,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(403, {"error": "forbidden origin"})
         try:
             self._send(200, fn())
+        except FileNotFoundError:
+            self._send(401, {"error": "not_signed_in"})
         except urllib.error.HTTPError as e:
             self._send(e.code, {"error": e.read().decode(errors="replace")[:300]})
         except Exception as e:  # noqa: BLE001
@@ -192,7 +211,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         u = urllib.parse.urlparse(self.path)
         q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
         if u.path == "/status":
-            return self._handle(lambda: {"ok": True})
+            return self._handle(lambda: {"ok": True, "signedIn": signed_in()})
         if u.path == "/events":
             return self._handle(lambda: list_events(q["start"], q["end"]))
         self._send(404, {"error": "not found"})
@@ -200,7 +219,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(n) or b"{}")
-        if urllib.parse.urlparse(self.path).path == "/events":
+        path = urllib.parse.urlparse(self.path).path
+        if path == "/login":
+            return self._handle(start_login)
+        if path == "/events":
             return self._handle(lambda: create_event(body))
         self._send(404, {"error": "not found"})
 
@@ -219,7 +241,8 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
 if __name__ == "__main__":
     if not os.path.exists(SECRET_FILE):
         sys.exit("Missing client_secret.json - see README.md step 1.")
-    if not os.path.exists(TOKEN_FILE) or "--login" in sys.argv:
+    if "--login" in sys.argv:
         login()
+        sys.exit(0)  # sign-in only; otherwise use the "Sign in" button on the wallpaper
     print(f"Calendar bridge running on http://127.0.0.1:{PORT}")
     Server(("127.0.0.1", PORT), Handler).serve_forever()

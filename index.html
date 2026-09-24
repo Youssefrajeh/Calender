@@ -71,6 +71,16 @@
   .ev .del:hover { color: #ff7b7b; }
   .empty, .status { color: var(--muted); font-size: 2vh; padding: 1vh 0; }
   .status.err { color: #ffb36e; }
+  .signin { padding: 1vh 0; }
+  .signin p { color: var(--muted); font-size: 2vh; line-height: 1.4; margin-bottom: 2vh; }
+  .signin .btn { background: #fff; color: #1f1f1f; border-radius: 1vh; padding: 1.4vh 2.2vh; font-size: 2.2vh; font-weight: 600; width: 100%; }
+  .signin .btn:hover { background: #e8eaed; }
+  .signin .btn[disabled] { opacity: .6; cursor: default; }
+  .signin small { display: block; color: var(--muted); font-size: 1.7vh; margin-top: 1.4vh; line-height: 1.4; }
+  .linkbox { background: rgba(255,255,255,.07); border-radius: 1vh; padding: 1.4vh; margin-bottom: 1.6vh; }
+  .linkbox b { font-size: 2vh; color: var(--accent); }
+  .linkbox input { width: 100%; margin: 1vh 0; font-size: 1.6vh; background: rgba(0,0,0,.25); border: 0; border-radius: .8vh; color: var(--text); padding: 1vh; }
+  .linkbox button { background: var(--accent); color: #0a0e1c; border-radius: .8vh; padding: .8vh 1.6vh; font-size: 1.9vh; font-weight: 700; }
   form { display: flex; gap: 1vh; margin-top: 2vh; }
   form input { background: rgba(255,255,255,.07); border: 0; border-radius: 1vh; color: var(--text);
                font: inherit; font-size: 2vh; padding: 1.2vh 1.4vh; min-width: 0; outline: none; }
@@ -109,7 +119,7 @@
 <script>
   const API = 'http://127.0.0.1:8765';
   const $ = id => document.getElementById(id);
-  const state = { monday: false, view: startOfMonth(new Date()), selected: new Date(), events: [], error: null };
+  const state = { monday: false, view: startOfMonth(new Date()), selected: new Date(), events: [], error: null, needLogin: false, signingIn: false, setupLink: null };
 
   function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
   function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
@@ -176,7 +186,26 @@
     $('selSub').textContent = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const box = $('events');
     box.replaceChildren();
-    if (state.error) {
+    $('addForm').style.display = state.needLogin ? 'none' : '';
+    if (state.setupLink) {
+      const lb = el('div', 'linkbox');
+      lb.appendChild(el('b', null, 'Signed in. Your wallpaper link:'));
+      const inp = el('input'); inp.readOnly = true; inp.value = state.setupLink;
+      const cp = el('button', null, 'Copy link');
+      cp.onclick = async () => { inp.select(); try { await navigator.clipboard.writeText(inp.value); cp.textContent = 'Copied'; } catch (e) { document.execCommand('copy'); } };
+      lb.append(inp, cp, el('small', null, 'Paste it into Lively (Add wallpaper > URL). Keep it private: anyone with it can see and edit your calendar.'));
+      box.appendChild(lb);
+    }
+    if (state.needLogin) {
+      const w = el('div', 'signin');
+      w.appendChild(el('p', null, 'Connect your Google Calendar to see and add events here.'));
+      const b = el('button', 'btn', state.signingIn ? 'Finish signing in in your browser…' : 'Sign in with Google');
+      b.disabled = state.signingIn;
+      b.onclick = signIn;
+      w.appendChild(b);
+      if (HOSTED) w.appendChild(el('small', null, 'Google does not allow sign-in inside Lively. Open this site in Chrome or Edge, sign in there, then paste the link it gives you into Lively.'));
+      box.appendChild(w);
+    } else if (state.error) {
       box.appendChild(el('div', 'status err', state.error));
     } else {
       const evs = eventsOn(d);
@@ -208,6 +237,10 @@
     KEY = new URLSearchParams(location.search).get('key') || localStorage.getItem('calKey') || '';
     if (KEY) localStorage.setItem('calKey', KEY);
   } catch (e) { /* storage unavailable */ }
+  if (HOSTED && KEY && new URLSearchParams(location.search).get('setup')) {
+    state.setupLink = location.origin + '/?key=' + encodeURIComponent(KEY);
+    history.replaceState(null, '', '/?key=' + encodeURIComponent(KEY)); // drop setup flag
+  }
 
   async function api(path, opts = {}) {
     let url = API + path;
@@ -231,13 +264,27 @@
     try {
       state.events = await api('/events?start=' + encodeURIComponent(start.toISOString()) + '&end=' + encodeURIComponent(end.toISOString()));
       state.error = null;
+      state.needLogin = false; state.signingIn = false;
     } catch (e) {
       state.events = [];
-      state.error = e.status === 401 ? 'Access key missing or wrong. Open the page with ?key=YOUR_KEY.'
+      state.needLogin = e.status === 401;
+      state.error = e.status === 401 ? null
         : HOSTED ? 'Could not load events: ' + e.message
         : 'Calendar helper not reachable. Start gcal_server.py (see README).';
     }
     renderAll();
+  }
+
+  async function signIn() {
+    if (HOSTED) { location.href = '/api/auth'; return; }
+    try {
+      await api('/login', { method: 'POST' });
+      state.signingIn = true; renderPanel();
+      const poll = setInterval(async () => { await load(); if (!state.needLogin) clearInterval(poll); }, 3000);
+      setTimeout(() => { clearInterval(poll); if (state.needLogin) { state.signingIn = false; renderPanel(); } }, 300000);
+    } catch (e) {
+      state.error = 'Calendar helper not reachable. Start gcal_server.py (see README).'; state.needLogin = false; renderPanel();
+    }
   }
 
   async function addEvent(title, time) {

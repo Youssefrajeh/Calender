@@ -1,10 +1,10 @@
 """Vercel serverless Google Calendar API for the wallpaper page.
 
-Env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, ACCESS_KEY.
-Every request must send the ACCESS_KEY in the X-Key header.
+Env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (a *Web application* OAuth client).
+Each request sends the user's Google refresh token in the X-Key header (it is the
+"key" in the wallpaper link produced by /api/auth). Nothing is stored server-side.
 """
 import datetime as dt
-import hmac
 import json
 import os
 import time
@@ -16,38 +16,47 @@ from http.server import BaseHTTPRequestHandler
 
 API = "https://www.googleapis.com/calendar/v3"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
-_access = {"token": None, "exp": 0}
+_access = {}  # refresh token -> (access token, expiry)
 
 
-def access_token():
-    if _access["token"] and time.time() < _access["exp"] - 60:
-        return _access["token"]
+class Unauthorized(Exception):
+    pass
+
+
+def access_token(refresh):
+    cached = _access.get(refresh)
+    if cached and time.time() < cached[1] - 60:
+        return cached[0]
     data = urllib.parse.urlencode({
         "client_id": os.environ["GOOGLE_CLIENT_ID"],
         "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],
-        "refresh_token": os.environ["GOOGLE_REFRESH_TOKEN"],
+        "refresh_token": refresh,
         "grant_type": "refresh_token",
     }).encode()
-    with urllib.request.urlopen(urllib.request.Request(TOKEN_URL, data), timeout=15) as r:
-        tok = json.load(r)
-    _access["token"] = tok["access_token"]
-    _access["exp"] = time.time() + tok.get("expires_in", 3600)
-    return _access["token"]
+    try:
+        with urllib.request.urlopen(urllib.request.Request(TOKEN_URL, data), timeout=15) as r:
+            tok = json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code in (400, 401):
+            raise Unauthorized() from e
+        raise
+    _access[refresh] = (tok["access_token"], time.time() + tok.get("expires_in", 3600))
+    return tok["access_token"]
 
 
-def gapi(method, path, params=None, body=None):
+def gapi(refresh, method, path, params=None, body=None):
     url = API + path + ("?" + urllib.parse.urlencode(params) if params else "")
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers={
-        "Authorization": "Bearer " + access_token(), "Content-Type": "application/json"})
+        "Authorization": "Bearer " + access_token(refresh), "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=15) as r:
         raw = r.read()
         return json.loads(raw) if raw else {}
 
 
-def cal_events(cal, start, end):
+def cal_events(refresh, cal, start, end):
     try:
-        items = gapi("GET", f"/calendars/{urllib.parse.quote(cal['id'], safe='')}/events", {
+        items = gapi(refresh, "GET", f"/calendars/{urllib.parse.quote(cal['id'], safe='')}/events", {
             "timeMin": start, "timeMax": end, "singleEvents": "true",
             "orderBy": "startTime", "maxResults": 250}).get("items", [])
     except urllib.error.HTTPError:
@@ -67,13 +76,13 @@ def cal_events(cal, start, end):
     return out
 
 
-def list_events(start, end):
-    cals = [c for c in gapi("GET", "/users/me/calendarList").get("items", []) if c.get("selected")]
+def list_events(refresh, start, end):
+    cals = [c for c in gapi(refresh, "GET", "/users/me/calendarList").get("items", []) if c.get("selected")]
     with ThreadPoolExecutor(max_workers=8) as ex:
-        return [e for part in ex.map(lambda c: cal_events(c, start, end), cals) for e in part]
+        return [e for part in ex.map(lambda c: cal_events(refresh, c, start, end), cals) for e in part]
 
 
-def create_event(d):
+def create_event(refresh, d):
     ev = {"summary": d["title"]}
     if d.get("allDay"):
         day = dt.date.fromisoformat(d["date"])
@@ -82,7 +91,7 @@ def create_event(d):
     else:
         ev["start"] = {"dateTime": d["start"]}
         ev["end"] = {"dateTime": d["end"]}
-    return gapi("POST", "/calendars/primary/events", body=ev)
+    return gapi(refresh, "POST", "/calendars/primary/events", body=ev)
 
 
 class handler(BaseHTTPRequestHandler):
@@ -95,24 +104,26 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(obj).encode())
 
     def _run(self, fn):
-        key = os.environ.get("ACCESS_KEY", "")
-        if not key or not hmac.compare_digest(self.headers.get("X-Key", ""), key):
-            return self._send(401, {"error": "unauthorized"})
+        key = self.headers.get("X-Key", "")
+        if not key:
+            return self._send(401, {"error": "not_signed_in"})
         q = {k: v[0] for k, v in urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).items()}
         try:
-            self._send(200, fn(q))
+            self._send(200, fn(key, q))
+        except Unauthorized:
+            self._send(401, {"error": "not_signed_in"})
         except urllib.error.HTTPError as e:
             self._send(e.code, {"error": e.read().decode(errors="replace")[:300]})
         except Exception as e:  # noqa: BLE001
             self._send(500, {"error": str(e)})
 
     def do_GET(self):
-        self._run(lambda q: list_events(q["start"], q["end"]))
+        self._run(lambda k, q: list_events(k, q["start"], q["end"]))
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-        self._run(lambda q: create_event(body))
+        self._run(lambda k, q: create_event(k, body))
 
     def do_DELETE(self):
-        self._run(lambda q: gapi(
-            "DELETE", f"/calendars/{urllib.parse.quote(q['cal'], safe='')}/events/{urllib.parse.quote(q['id'], safe='')}") or {"ok": True})
+        self._run(lambda k, q: gapi(
+            k, "DELETE", f"/calendars/{urllib.parse.quote(q['cal'], safe='')}/events/{urllib.parse.quote(q['id'], safe='')}") or {"ok": True})
