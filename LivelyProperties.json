@@ -3,7 +3,8 @@
   "monday": { "type": "checkbox", "text": "Week starts on Monday", "value": false },
   "clock": { "type": "checkbox", "text": "Show clock", "value": true },
   "align": { "type": "dropdown", "text": "Position", "value": 2, "items": ["Left", "Center", "Right"] },
-  "bgMode": { "type": "dropdown", "text": "Background", "value": 0, "items": ["Rotating gradients", "Random photos (needs internet)", "Static"] },
+  "bgMode": { "type": "dropdown", "text": "Background", "value": 0, "items": ["Photos (auto-change)", "Rotating gradients", "Static"] },
+  "bgUrls": { "type": "textbox", "text": "Your image URLs (comma separated, optional)", "value": "" },
   "bgMinutes": { "type": "slider", "text": "Change every (minutes)", "value": 10, "min": 1, "max": 60, "step": 1 },
-  "bgDim": { "type": "slider", "text": "Background dimming (%)", "value": 45, "min": 0, "max": 90, "step": 5 }
+  "bgDim": { "type": "slider", "text": "Background dimming (%)", "value": 30, "min": 0, "max": 90, "step": 5 }
 }

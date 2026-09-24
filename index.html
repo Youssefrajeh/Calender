@@ -73,7 +73,7 @@
   .status.err { color: #ffb36e; }
   .bg { position: fixed; inset: 0; z-index: -2; opacity: 0; transition: opacity 2.5s ease; background-size: cover; background-position: center; }
   .bg.on { opacity: 1; }
-  #dim { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: rgba(5, 7, 14, var(--dim, .45)); }
+  #dim { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: rgba(5, 7, 14, var(--dim, .3)); }
   #user { position: fixed; top: 3vh; right: 3vw; display: flex; align-items: center; gap: 1.4vh;
           background: var(--panel); border-radius: 5vh; padding: .8vh 1.6vh .8vh .8vh; font-size: 2vh; }
   #user:empty { display: none; }
@@ -382,7 +382,7 @@
     'linear-gradient(150deg, #16352a 0%, #0f2129 55%, #080d16 100%)',
     'linear-gradient(135deg, #3b2a12 0%, #1f1a24 55%, #0a0b14 100%)',
   ];
-  const bg = { mode: 0, minutes: 10, idx: 0, front: 2, timer: null }; // mode: 0 gradients, 1 photos, 2 static
+  const bg = { mode: 0, minutes: 10, idx: 0, photo: 0, urls: [], front: 2, timer: null }; // mode: 0 photos, 1 gradients, 2 static
 
   function showBg(css) {
     const next = $('bg' + (bg.front === 1 ? 2 : 1)), prev = $('bg' + bg.front);
@@ -392,9 +392,10 @@
   }
 
   function nextBg() {
-    if (bg.mode === 1) { // random photo, preloaded so it fades in cleanly
+    if (bg.mode === 0) { // photo (your own list, else a random one), preloaded so it fades in cleanly
       const w = Math.min(2560, innerWidth), h = Math.min(1440, innerHeight);
-      const url = 'https://picsum.photos/seed/' + Date.now() + '/' + w + '/' + h;
+      const url = bg.urls.length ? bg.urls[bg.photo++ % bg.urls.length]
+                                 : 'https://picsum.photos/seed/' + Date.now() + '/' + w + '/' + h;
       const img = new Image();
       img.onload = () => showBg('url("' + url + '")');
       img.onerror = () => showBg(GRADS[++bg.idx % GRADS.length]); // offline: fall back to a gradient
@@ -412,6 +413,11 @@
   // Lively Wallpaper calls this on load and whenever a property changes.
   function livelyPropertyListener(name, val) {
     if (name === 'bgMode') { bg.mode = +val; nextBg(); scheduleBg(); }
+    else if (name === 'bgUrls') { // comma/newline separated; Windows paths become file:// URLs (local page only)
+      bg.urls = String(val).split(/[\n,]+/).map(u => u.trim()).filter(Boolean)
+        .map(u => /^[A-Za-z]:[\\/]/.test(u) ? 'file:///' + u.replace(/\\/g, '/') : u);
+      bg.photo = 0; if (bg.mode === 0) nextBg();
+    }
     else if (name === 'bgMinutes') { bg.minutes = Math.max(1, +val); scheduleBg(); }
     else if (name === 'bgDim') document.documentElement.style.setProperty('--dim', String(Math.min(90, Math.max(0, +val)) / 100));
     else if (name === 'accent') document.documentElement.style.setProperty('--accent', val);
@@ -430,6 +436,7 @@
   }, 30000);
   setInterval(load, 300000); // refresh events every 5 min
 
+  showBg(GRADS[0]); // instant placeholder until the first photo has loaded
   nextBg(); scheduleBg();
   tick(); renderAll(); load();
 </script>
