@@ -203,6 +203,7 @@
       b.disabled = state.signingIn;
       b.onclick = signIn;
       w.appendChild(b);
+      if (HOSTED) { const pv = el('small'); const l = el('a', null, 'Privacy policy'); l.href = '/privacy.html'; l.target = '_blank'; l.style.color = 'var(--accent)'; pv.appendChild(l); w.appendChild(pv); }
       if (HOSTED) w.appendChild(el('small', null, 'Google does not allow sign-in inside Lively. Open this site in Chrome or Edge, sign in there, then paste the link it gives you into Lively.'));
       box.appendChild(w);
     } else if (state.error) {
