@@ -24,7 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SECRET_FILE = os.path.join(HERE, "client_secret.json")
 TOKEN_FILE = os.path.join(HERE, "token.json")
 PORT = 8765
-SCOPE = "https://www.googleapis.com/auth/calendar"
+SCOPE = "openid email profile https://www.googleapis.com/auth/calendar"
 API = "https://www.googleapis.com/calendar/v3"
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -145,6 +145,28 @@ def list_events(start, end):
     return out
 
 
+def me():
+    try:
+        req = urllib.request.Request("https://www.googleapis.com/oauth2/v3/userinfo",
+                                     headers={"Authorization": "Bearer " + access_token()})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            u = json.load(r)
+        return {"name": u.get("name"), "email": u.get("email"), "picture": u.get("picture")}
+    except urllib.error.HTTPError as e:
+        if e.code not in (401, 403):
+            raise
+    cals = gapi("GET", "/users/me/calendarList").get("items", [])
+    primary = next((c for c in cals if c.get("primary")), {})
+    return {"name": None, "email": primary.get("id"), "picture": None}
+
+
+def logout():
+    if os.path.exists(TOKEN_FILE):
+        os.remove(TOKEN_FILE)
+    _access.update(token=None, exp=0)
+    return {"ok": True}
+
+
 def create_event(d):
     ev = {"summary": d["title"]}
     if d.get("allDay"):
@@ -212,6 +234,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
         if u.path == "/status":
             return self._handle(lambda: {"ok": True, "signedIn": signed_in()})
+        if u.path == "/me":
+            return self._handle(me)
         if u.path == "/events":
             return self._handle(lambda: list_events(q["start"], q["end"]))
         self._send(404, {"error": "not found"})
@@ -220,6 +244,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(n) or b"{}")
         path = urllib.parse.urlparse(self.path).path
+        if path == "/logout":
+            return self._handle(logout)
         if path == "/login":
             return self._handle(start_login)
         if path == "/events":

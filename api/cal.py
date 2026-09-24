@@ -82,6 +82,22 @@ def list_events(refresh, start, end):
         return [e for part in ex.map(lambda c: cal_events(refresh, c, start, end), cals) for e in part]
 
 
+def me(refresh):
+    """Who is signed in: Google profile, falling back to the primary calendar id (their email)."""
+    try:
+        req = urllib.request.Request("https://www.googleapis.com/oauth2/v3/userinfo",
+                                     headers={"Authorization": "Bearer " + access_token(refresh)})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            u = json.load(r)
+        return {"name": u.get("name"), "email": u.get("email"), "picture": u.get("picture")}
+    except urllib.error.HTTPError as e:
+        if e.code not in (401, 403):
+            raise
+    cals = gapi(refresh, "GET", "/users/me/calendarList").get("items", [])
+    primary = next((c for c in cals if c.get("primary")), {})
+    return {"name": None, "email": primary.get("id"), "picture": None}
+
+
 def create_event(refresh, d):
     ev = {"summary": d["title"]}
     if d.get("allDay"):
@@ -118,7 +134,7 @@ class handler(BaseHTTPRequestHandler):
             self._send(500, {"error": str(e)})
 
     def do_GET(self):
-        self._run(lambda k, q: list_events(k, q["start"], q["end"]))
+        self._run(lambda k, q: me(k) if q.get("op") == "me" else list_events(k, q["start"], q["end"]))
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")

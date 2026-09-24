@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
-SCOPE = "https://www.googleapis.com/auth/calendar"
+SCOPE = "openid email profile https://www.googleapis.com/auth/calendar"
 
 
 class handler(BaseHTTPRequestHandler):

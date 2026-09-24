@@ -71,6 +71,15 @@
   .ev .del:hover { color: #ff7b7b; }
   .empty, .status { color: var(--muted); font-size: 2vh; padding: 1vh 0; }
   .status.err { color: #ffb36e; }
+  #user { position: fixed; top: 3vh; right: 3vw; display: flex; align-items: center; gap: 1.4vh;
+          background: var(--panel); border-radius: 5vh; padding: .8vh 1.6vh .8vh .8vh; font-size: 2vh; }
+  #user:empty { display: none; }
+  #user img, #user .av { width: 4.4vh; height: 4.4vh; border-radius: 50%; flex: none; }
+  #user .av { background: var(--accent); color: #0a0e1c; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  #user .who { line-height: 1.15; }
+  #user .who small { display: block; color: var(--muted); font-size: 1.6vh; }
+  #user button { color: var(--muted); font-size: 1.7vh; margin-left: .6vh; }
+  #user button:hover { color: var(--text); }
   .signin { padding: 1vh 0; }
   .signin p { color: var(--muted); font-size: 2vh; line-height: 1.4; margin-bottom: 2vh; }
   .signin .btn { background: #fff; color: #1f1f1f; border-radius: 1vh; padding: 1.4vh 2.2vh; font-size: 2.2vh; font-weight: 600; width: 100%; }
@@ -91,6 +100,7 @@
 </style>
 </head>
 <body data-align="right">
+  <div id="user"></div>
   <aside class="panel">
     <h3 id="selTitle"></h3>
     <div class="sub" id="selSub"></div>
@@ -119,7 +129,7 @@
 <script>
   const API = 'http://127.0.0.1:8765';
   const $ = id => document.getElementById(id);
-  const state = { monday: false, view: startOfMonth(new Date()), selected: new Date(), events: [], error: null, needLogin: false, signingIn: false, setupLink: null };
+  const state = { monday: false, view: startOfMonth(new Date()), selected: new Date(), events: [], error: null, needLogin: false, signingIn: false, setupLink: null, user: null };
 
   function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
   function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
@@ -228,7 +238,37 @@
     }
   }
 
-  function renderAll() { renderCalendar(); renderPanel(); }
+  function renderUser() {
+    const box = $('user');
+    box.replaceChildren();
+    const u = state.user;
+    if (!u || state.needLogin) return;
+    const label = u.name || u.email || 'Signed in';
+    if (u.picture) {
+      const img = el('img'); img.src = u.picture; img.alt = ''; img.referrerPolicy = 'no-referrer';
+      img.onerror = () => img.replaceWith(el('div', 'av', label[0].toUpperCase()));
+      box.appendChild(img);
+    } else box.appendChild(el('div', 'av', label[0].toUpperCase()));
+    const who = el('div', 'who', label);
+    if (u.name && u.email) who.appendChild(el('small', null, u.email));
+    const out = el('button', null, 'Sign out'); out.onclick = signOut;
+    box.append(who, out);
+  }
+
+  async function loadUser() {
+    try { state.user = await api('/me?op=me'); } catch (e) { state.user = null; }
+    renderUser();
+  }
+
+  async function signOut() {
+    try {
+      if (HOSTED) { localStorage.removeItem('calKey'); location.href = '/'; return; }
+      await api('/logout', { method: 'POST' });
+    } catch (e) { /* ignore */ }
+    state.user = null; state.events = []; state.needLogin = true; renderAll(); renderUser();
+  }
+
+  function renderAll() { renderCalendar(); renderPanel(); renderUser(); }
 
   /* ---------- data ---------- */
   // Hosted (https) mode: same-origin serverless API, authenticated with ?key=... from the URL.
@@ -265,7 +305,9 @@
     try {
       state.events = await api('/events?start=' + encodeURIComponent(start.toISOString()) + '&end=' + encodeURIComponent(end.toISOString()));
       state.error = null;
+      const wasOut = state.needLogin || !state.user;
       state.needLogin = false; state.signingIn = false;
+      if (wasOut) loadUser();
     } catch (e) {
       state.events = [];
       state.needLogin = e.status === 401;
