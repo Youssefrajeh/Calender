@@ -82,7 +82,8 @@
   #user .av { background: var(--accent); color: #0a0e1c; display: flex; align-items: center; justify-content: center; font-weight: 700; }
   #user .who { line-height: 1.15; }
   #user .who small { display: block; color: var(--muted); font-size: 1.6vh; }
-  #user button { color: var(--muted); font-size: 1.7vh; margin-left: .6vh; }
+  #user button { color: var(--muted); font-size: 1.7vh; margin-left: .6vh; display: none; }
+  #user:hover button { display: inline; }
   #user button:hover { color: var(--text); }
   .signin { padding: 1vh 0; }
   .signin p { color: var(--muted); font-size: 2vh; line-height: 1.4; margin-bottom: 2vh; }
@@ -134,7 +135,7 @@
 <script>
   const API = 'http://127.0.0.1:8765';
   const $ = id => document.getElementById(id);
-  const state = { monday: false, view: startOfMonth(new Date()), selected: new Date(), events: [], error: null, needLogin: false, signingIn: false, setupLink: null, user: null };
+  const state = { monday: false, view: startOfMonth(new Date()), selected: new Date(), events: [], error: null, needLogin: false, signingIn: false, user: null };
 
   function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
   function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
@@ -202,18 +203,6 @@
     const box = $('events');
     box.replaceChildren();
     $('addForm').style.display = state.needLogin ? 'none' : '';
-    if (state.setupLink) {
-      const lb = el('div', 'linkbox');
-      lb.appendChild(el('b', null, 'Signed in.'));
-      lb.appendChild(el('div', null, ' '));
-      const hide = () => { state.setupLink = null; renderPanel(); };
-      const cp = el('button', null, 'Copy wallpaper link');
-      cp.onclick = async () => { cp.textContent = (await copyLink()) ? 'Copied. Hiding…' : 'Copy failed'; setTimeout(hide, 3000); };
-      const done = el('button', null, 'Hide'); done.style.marginLeft = '1vh'; done.style.background = 'rgba(255,255,255,.12)'; done.style.color = 'var(--text)';
-      done.onclick = hide;
-      lb.append(cp, done, el('small', null, 'Paste it into Lively (Add wallpaper > URL). The link is never shown on screen; keep it private, since anyone with it can see and edit your calendar.'));
-      box.appendChild(lb);
-    }
     if (state.needLogin) {
       const w = el('div', 'signin');
       w.appendChild(el('p', null, 'Connect your Google Calendar to see and add events here.'));
@@ -305,10 +294,7 @@
     if (KEY) localStorage.setItem('calKey', KEY);
   } catch (e) { /* storage unavailable */ }
   if (HOSTED && KEY && new URLSearchParams(location.search).get('setup')) {
-    state.setupLink = true; // just a flag: the link itself is never rendered
-    history.replaceState(null, '', '/?key=' + encodeURIComponent(KEY)); // drop setup flag
-    // The link is a secret: never leave it sitting on the desktop.
-    setTimeout(() => { state.setupLink = null; renderPanel(); }, 60000);
+    history.replaceState(null, '', '/?key=' + encodeURIComponent(KEY)); // drop the one-time setup flag
   }
 
   async function api(path, opts = {}) {
