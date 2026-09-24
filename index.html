@@ -204,18 +204,14 @@
     $('addForm').style.display = state.needLogin ? 'none' : '';
     if (state.setupLink) {
       const lb = el('div', 'linkbox');
-      lb.appendChild(el('b', null, 'Signed in. Your wallpaper link:'));
-      const inp = el('input'); inp.readOnly = true; inp.value = state.setupLink;
+      lb.appendChild(el('b', null, 'Signed in.'));
+      lb.appendChild(el('div', null, ' '));
       const hide = () => { state.setupLink = null; renderPanel(); };
-      const cp = el('button', null, 'Copy link');
-      cp.onclick = async () => {
-        inp.select();
-        try { await navigator.clipboard.writeText(inp.value); } catch (e) { document.execCommand('copy'); }
-        cp.textContent = 'Copied. Hiding…'; setTimeout(hide, 3000);
-      };
+      const cp = el('button', null, 'Copy wallpaper link');
+      cp.onclick = async () => { cp.textContent = (await copyLink()) ? 'Copied. Hiding…' : 'Copy failed'; setTimeout(hide, 3000); };
       const done = el('button', null, 'Hide'); done.style.marginLeft = '1vh'; done.style.background = 'rgba(255,255,255,.12)'; done.style.color = 'var(--text)';
       done.onclick = hide;
-      lb.append(inp, cp, done, el('small', null,'Paste it into Lively (Add wallpaper > URL). Keep it private: anyone with it can see and edit your calendar.'));
+      lb.append(cp, done, el('small', null, 'Paste it into Lively (Add wallpaper > URL). The link is never shown on screen; keep it private, since anyone with it can see and edit your calendar.'));
       box.appendChild(lb);
     }
     if (state.needLogin) {
@@ -263,7 +259,26 @@
     } else box.appendChild(el('div', 'av', label[0].toUpperCase()));
     const who = el('div', 'who', label);
     const out = el('button', null, 'Sign out'); out.onclick = signOut;
-    box.append(who, out);
+    box.appendChild(who);
+    if (HOSTED && KEY) {
+      const cp = el('button', null, 'Copy link'); cp.title = 'Copy your wallpaper link (paste into Lively)';
+      cp.onclick = async () => { cp.textContent = (await copyLink()) ? 'Copied' : 'Failed'; setTimeout(() => { cp.textContent = 'Copy link'; }, 2000); };
+      box.appendChild(cp);
+    }
+    box.appendChild(out);
+  }
+
+  // Copies the personal wallpaper link without ever putting it on screen.
+  async function copyLink() {
+    const link = location.origin + '/?key=' + encodeURIComponent(KEY);
+    try { await navigator.clipboard.writeText(link); return true; } catch (e) { /* fall through */ }
+    const t = document.createElement('textarea');
+    t.value = link; t.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    document.body.appendChild(t); t.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { /* ignore */ }
+    t.remove();
+    return ok;
   }
 
   async function loadUser() {
@@ -290,7 +305,7 @@
     if (KEY) localStorage.setItem('calKey', KEY);
   } catch (e) { /* storage unavailable */ }
   if (HOSTED && KEY && new URLSearchParams(location.search).get('setup')) {
-    state.setupLink = location.origin + '/?key=' + encodeURIComponent(KEY);
+    state.setupLink = true; // just a flag: the link itself is never rendered
     history.replaceState(null, '', '/?key=' + encodeURIComponent(KEY)); // drop setup flag
     // The link is a secret: never leave it sitting on the desktop.
     setTimeout(() => { state.setupLink = null; renderPanel(); }, 60000);
