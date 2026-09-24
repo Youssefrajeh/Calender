@@ -71,6 +71,9 @@
   .ev .del:hover { color: #ff7b7b; }
   .empty, .status { color: var(--muted); font-size: 2vh; padding: 1vh 0; }
   .status.err { color: #ffb36e; }
+  .bg { position: fixed; inset: 0; z-index: -2; opacity: 0; transition: opacity 2.5s ease; background-size: cover; background-position: center; }
+  .bg.on { opacity: 1; }
+  #dim { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: rgba(5, 7, 14, var(--dim, .45)); }
   #user { position: fixed; top: 3vh; right: 3vw; display: flex; align-items: center; gap: 1.4vh;
           background: var(--panel); border-radius: 5vh; padding: .8vh 1.6vh .8vh .8vh; font-size: 2vh; }
   #user:empty { display: none; }
@@ -100,6 +103,7 @@
 </style>
 </head>
 <body data-align="right">
+  <div class="bg" id="bg1"></div><div class="bg" id="bg2"></div><div id="dim"></div>
   <div id="user"></div>
   <aside class="panel">
     <h3 id="selTitle"></h3>
@@ -369,9 +373,48 @@
       Object.assign(el('small'), { textContent: n.getHours() < 12 ? 'AM' : 'PM' }));
   }
 
+  /* ---------- rotating background ---------- */
+  const GRADS = [
+    'radial-gradient(ellipse at 20% 10%, #1b2140 0%, #0d101c 55%, #070911 100%)',
+    'linear-gradient(135deg, #2b1055 0%, #1a1440 45%, #0b0d1f 100%)',
+    'linear-gradient(160deg, #0f3a4a 0%, #0c2233 50%, #070e1a 100%)',
+    'linear-gradient(140deg, #4a1f2f 0%, #241528 50%, #0c0a18 100%)',
+    'linear-gradient(150deg, #16352a 0%, #0f2129 55%, #080d16 100%)',
+    'linear-gradient(135deg, #3b2a12 0%, #1f1a24 55%, #0a0b14 100%)',
+  ];
+  const bg = { mode: 0, minutes: 10, idx: 0, front: 2, timer: null }; // mode: 0 gradients, 1 photos, 2 static
+
+  function showBg(css) {
+    const next = $('bg' + (bg.front === 1 ? 2 : 1)), prev = $('bg' + bg.front);
+    next.style.backgroundImage = css;
+    next.classList.add('on'); prev.classList.remove('on');
+    bg.front = bg.front === 1 ? 2 : 1;
+  }
+
+  function nextBg() {
+    if (bg.mode === 1) { // random photo, preloaded so it fades in cleanly
+      const w = Math.min(2560, innerWidth), h = Math.min(1440, innerHeight);
+      const url = 'https://picsum.photos/seed/' + Date.now() + '/' + w + '/' + h;
+      const img = new Image();
+      img.onload = () => showBg('url("' + url + '")');
+      img.onerror = () => showBg(GRADS[++bg.idx % GRADS.length]); // offline: fall back to a gradient
+      img.src = url;
+    } else {
+      showBg(GRADS[bg.mode === 2 ? 0 : ++bg.idx % GRADS.length]);
+    }
+  }
+
+  function scheduleBg() {
+    clearInterval(bg.timer);
+    if (bg.mode !== 2) bg.timer = setInterval(nextBg, bg.minutes * 60000);
+  }
+
   // Lively Wallpaper calls this on load and whenever a property changes.
   function livelyPropertyListener(name, val) {
-    if (name === 'accent') document.documentElement.style.setProperty('--accent', val);
+    if (name === 'bgMode') { bg.mode = +val; nextBg(); scheduleBg(); }
+    else if (name === 'bgMinutes') { bg.minutes = Math.max(1, +val); scheduleBg(); }
+    else if (name === 'bgDim') document.documentElement.style.setProperty('--dim', String(Math.min(90, Math.max(0, +val)) / 100));
+    else if (name === 'accent') document.documentElement.style.setProperty('--accent', val);
     else if (name === 'monday') { state.monday = val; load(); renderAll(); }
     else if (name === 'clock') document.body.classList.toggle('no-clock', !val);
     else if (name === 'align') document.body.dataset.align = ['left', 'center', 'right'][val] || 'right';
@@ -387,6 +430,7 @@
   }, 30000);
   setInterval(load, 300000); // refresh events every 5 min
 
+  nextBg(); scheduleBg();
   tick(); renderAll(); load();
 </script>
 </body>
