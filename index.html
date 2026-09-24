@@ -392,6 +392,20 @@
     'linear-gradient(150deg, #16352a 0%, #0f2129 55%, #080d16 100%)',
     'linear-gradient(135deg, #3b2a12 0%, #1f1a24 55%, #0a0b14 100%)',
   ];
+  // Hand-picked landscape/nature photos (picsum.photos ids): no people, pets or close-ups.
+  const CURATED = [1002, 1015, 1016, 1018, 1019, 1021, 1022, 1036, 1037, 1038, 1039, 1040, 1041,
+                   1043, 1044, 1045, 1049, 1050, 1051, 1052, 1053, 1055, 1056, 1057, 1061, 1064];
+  let curatedQueue = [];
+  function nextCurated() { // shuffled, and no repeats until every photo has been shown
+    if (!curatedQueue.length) {
+      curatedQueue = CURATED.slice();
+      for (let i = curatedQueue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [curatedQueue[i], curatedQueue[j]] = [curatedQueue[j], curatedQueue[i]];
+      }
+    }
+    return curatedQueue.pop();
+  }
   const bg = { mode: 0, minutes: 10, idx: 0, photo: 0, urls: [], front: 2, timer: null }; // mode: 0 photos, 1 gradients, 2 static
 
   function showBg(css) {
@@ -405,7 +419,7 @@
     if (bg.mode === 0) { // photo (your own list, else a random one), preloaded so it fades in cleanly
       const w = Math.min(2560, innerWidth), h = Math.min(1440, innerHeight);
       const url = bg.urls.length ? bg.urls[bg.photo++ % bg.urls.length]
-                                 : 'https://picsum.photos/seed/' + Date.now() + '/' + w + '/' + h;
+                                 : 'https://picsum.photos/id/' + nextCurated() + '/' + w + '/' + h;
       const img = new Image();
       img.onload = () => showBg('url("' + url + '")');
       img.onerror = () => showBg(GRADS[++bg.idx % GRADS.length]); // offline: fall back to a gradient
