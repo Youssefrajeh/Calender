@@ -102,11 +102,14 @@
   #newTitle { flex: 1; }
   #newTime { width: 13vh; color-scheme: dark; }
   form button { background: var(--accent); color: #0a0e1c; border-radius: 1vh; padding: 0 1.8vh; font-weight: 700; font-size: 2.6vh; }
+  #fakeCursor { position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; display: none; will-change: transform; }
+  body.draw-cursor #fakeCursor.on { display: block; }
 </style>
 </head>
 <body data-align="right">
   <div class="bg" id="bg1"></div><div class="bg" id="bg2"></div><div id="dim"></div>
   <div id="user"></div>
+  <svg id="fakeCursor" width="20" height="30" viewBox="0 0 20 30" aria-hidden="true"><path d="M1 1v23l6-6 4 10 4-2-4-9h8z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>
   <aside class="panel">
     <h3 id="selTitle"></h3>
     <div class="sub" id="selSub"></div>
@@ -434,6 +437,20 @@
     if (bg.mode !== 2) bg.timer = setInterval(nextBg, bg.minutes * 60000);
   }
 
+  // Some Lively/Windows setups deliver mouse input to the wallpaper but never draw the Windows cursor
+  // over the desktop, so we draw our own. On by default inside Lively's WebView2 (window.chrome.webview),
+  // or with ?cursor=1 in the URL; the Lively "Draw cursor" setting overrides it.
+  const fakeCursor = $('fakeCursor');
+  let cursorIdle;
+  document.body.classList.toggle('draw-cursor', !!(window.chrome && window.chrome.webview) || /[?&]cursor=1/.test(location.search));
+  document.addEventListener('mousemove', e => {
+    fakeCursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+    fakeCursor.classList.add('on');
+    clearTimeout(cursorIdle);
+    cursorIdle = setTimeout(() => fakeCursor.classList.remove('on'), 4000); // Lively stops sending moves once a window covers the desktop
+  });
+  document.documentElement.addEventListener('mouseleave', () => fakeCursor.classList.remove('on'));
+
   // Lively Wallpaper calls this on load and whenever a property changes.
   function livelyPropertyListener(name, val) {
     if (name === 'bgMode') { bg.mode = +val; nextBg(); scheduleBg(); }
@@ -447,6 +464,7 @@
     else if (name === 'accent') document.documentElement.style.setProperty('--accent', val);
     else if (name === 'monday') { state.monday = val; load(); renderAll(); }
     else if (name === 'clock') document.body.classList.toggle('no-clock', !val);
+    else if (name === 'drawCursor') document.body.classList.toggle('draw-cursor', !!val);
     else if (name === 'align') document.body.dataset.align = ['left', 'center', 'right'][val] || 'right';
   }
 
