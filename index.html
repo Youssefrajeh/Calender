@@ -59,15 +59,17 @@
   .dots i { width: .8vh; height: .8vh; border-radius: 50%; }
 
   /* ---- countdown ---- */
-  #countdown { margin-top: 2vh; padding: 1.6vh 2.4vh; background: var(--panel); border-radius: 2vh; backdrop-filter: blur(6px); }
+  #countdown { position: fixed; left: 4vw; top: 50%; transform: translateY(-50%); width: min(40vh, 20vw);
+               padding: 3.6vh 3vh; background: var(--panel); border-radius: 2.4vh; backdrop-filter: blur(6px); }
+  body[data-align="left"] #countdown { left: auto; right: 4vw; } /* calendar moved left: keep out of its way */
+  body[data-align="center"] #countdown { display: none; } /* no free side when the calendar is centered */
   #countdown[hidden] { display: none; }
-  #countdown .row { display: flex; align-items: baseline; justify-content: space-between; gap: 2vh; }
-  #countdown .lbl { font-size: 1.9vh; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
-  #countdown .num { font-weight: 200; font-size: 4.4vh; line-height: 1; font-variant-numeric: tabular-nums; }
-  #countdown .num small { font-size: 2.2vh; color: var(--muted); margin-left: .8vh; }
-  #countdown .track { height: .7vh; border-radius: 1vh; background: rgba(255,255,255,.1); margin: 1.2vh 0 .8vh; overflow: hidden; }
+  #countdown .lbl { font-size: 2.8vh; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+  #countdown .num { font-weight: 200; font-size: 15vh; line-height: 1; margin-top: 1.6vh; font-variant-numeric: tabular-nums; }
+  #countdown .unit { font-size: 3.6vh; color: var(--accent); letter-spacing: .06em; }
+  #countdown .track { height: 1.2vh; border-radius: 1vh; background: rgba(255,255,255,.1); margin: 3vh 0 1.6vh; overflow: hidden; }
   #countdown .fill { height: 100%; background: var(--accent); border-radius: 1vh; transition: width .6s ease; }
-  #countdown .meta { font-size: 1.7vh; color: var(--muted); }
+  #countdown .meta { font-size: 2.4vh; color: var(--muted); line-height: 1.5; white-space: pre-line; }
 
   /* ---- agenda panel ---- */
   .panel { width: min(46vh, 26vw); max-height: 78vh; display: flex; flex-direction: column;
@@ -152,12 +154,15 @@
     </div>
     <h2 id="year"></h2>
     <div class="grid" id="grid"></div>
-    <section id="countdown">
-      <div class="row"><span class="lbl" id="cdLabel"></span><span class="num" id="cdNum"></span></div>
-      <div class="track"><div class="fill" id="cdFill"></div></div>
-      <div class="meta" id="cdMeta"></div>
-    </section>
   </main>
+
+  <section id="countdown">
+    <div class="lbl" id="cdLabel"></div>
+    <div class="num" id="cdNum"></div>
+    <div class="unit" id="cdUnit"></div>
+    <div class="track"><div class="fill" id="cdFill"></div></div>
+    <div class="meta" id="cdMeta"></div>
+  </section>
 
 <script>
   const API = 'http://127.0.0.1:8765';
@@ -427,15 +432,16 @@
     let num, unit, pct, meta;
     if (dayNo < 1) {
       num = 1 - dayNo; unit = num === 1 ? 'day to start' : 'days to start'; pct = 0;
-      meta = 'Starts ' + fmt(cd.start) + ' · ends ' + fmt(last);
+      meta = 'Starts ' + fmt(cd.start) + '\nEnds ' + fmt(last);
     } else if (dayNo > cd.days) {
       num = 0; unit = 'days left'; pct = 100;
       meta = 'Completed ' + fmt(last);
     } else {
       num = cd.days - dayNo + 1; unit = num === 1 ? 'day left' : 'days left'; pct = (dayNo - 1) / cd.days * 100;
-      meta = 'Day ' + dayNo + ' of ' + cd.days + ' · ends ' + fmt(last);
+      meta = 'Day ' + dayNo + ' of ' + cd.days + '\nEnds ' + fmt(last);
     }
-    $('cdNum').replaceChildren(document.createTextNode(num), Object.assign(el('small'), { textContent: unit }));
+    $('cdNum').textContent = num;
+    $('cdUnit').textContent = unit;
     $('cdFill').style.width = pct + '%';
     $('cdMeta').textContent = meta;
   }
