@@ -66,7 +66,6 @@
   /* ---- countdown ---- */
   #countdown { position: fixed; left: 4vw; top: 50%; transform: translateY(-50%); width: min(28vh, 16vw);
                padding: 2.4vh 2.2vh; background: var(--panel); border-radius: 2.4vh; backdrop-filter: blur(6px); }
-  body[data-align="left"] #countdown { left: auto; right: 4vw; } /* calendar moved left: keep out of its way */
   body[data-align="center"] #countdown { display: none; } /* no free side when the calendar is centered */
   #countdown[hidden] { display: none; }
   #countdown .lbl { font-size: 2vh; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
@@ -129,7 +128,6 @@
            color: transparent; text-shadow: none; filter: drop-shadow(0 .3vh 1.2vh rgba(0,0,0,.55)); }
   #logo { position: fixed; top: 3vh; left: 3vw; width: 16vh; height: 16vh; border-radius: 50%; object-fit: cover;
           pointer-events: none; box-shadow: 0 .6vh 3vh rgba(0,0,0,.55), 0 0 2.5vh rgba(140,90,255,.35); }
-  body[data-align="left"] #logo { left: auto; right: 3vw; top: 10.5vh; } /* calendar takes the left side; sit under the profile pill */
   #fakeCursor { position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; display: none; will-change: transform; }
   body.draw-cursor #fakeCursor.on { display: block; }
 </style>
