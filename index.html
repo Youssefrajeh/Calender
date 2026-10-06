@@ -64,17 +64,17 @@
   .dots i { width: .8vh; height: .8vh; border-radius: 50%; }
 
   /* ---- countdown ---- */
-  #countdown { position: fixed; left: 4vw; top: 50%; transform: translateY(-50%); width: min(40vh, 20vw);
-               padding: 3.6vh 3vh; background: var(--panel); border-radius: 2.4vh; backdrop-filter: blur(6px); }
+  #countdown { position: fixed; left: 4vw; top: 50%; transform: translateY(-50%); width: min(28vh, 16vw);
+               padding: 2.4vh 2.2vh; background: var(--panel); border-radius: 2.4vh; backdrop-filter: blur(6px); }
   body[data-align="left"] #countdown { left: auto; right: 4vw; } /* calendar moved left: keep out of its way */
   body[data-align="center"] #countdown { display: none; } /* no free side when the calendar is centered */
   #countdown[hidden] { display: none; }
-  #countdown .lbl { font-size: 2.8vh; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
-  #countdown .num { font-weight: 200; font-size: 15vh; line-height: 1; margin-top: 1.6vh; font-variant-numeric: tabular-nums; }
-  #countdown .unit { font-size: 3.6vh; color: var(--accent); letter-spacing: .06em; }
-  #countdown .track { height: 1.2vh; border-radius: 1vh; background: rgba(255,255,255,.1); margin: 3vh 0 1.6vh; overflow: hidden; }
+  #countdown .lbl { font-size: 2vh; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+  #countdown .num { font-weight: 200; font-size: 10vh; line-height: 1; margin-top: 1vh; font-variant-numeric: tabular-nums; }
+  #countdown .unit { font-size: 2.6vh; color: var(--accent); letter-spacing: .06em; }
+  #countdown .track { height: .9vh; border-radius: 1vh; background: rgba(255,255,255,.1); margin: 2vh 0 1.1vh; overflow: hidden; }
   #countdown .fill { height: 100%; background: var(--accent); border-radius: 1vh; transition: width .6s ease; }
-  #countdown .meta { font-size: 2.4vh; color: var(--muted); line-height: 1.5; white-space: pre-line; }
+  #countdown .meta { font-size: 1.8vh; color: var(--muted); line-height: 1.5; white-space: pre-line; }
 
   /* ---- agenda panel ---- */
   .panel { width: min(46vh, 26vw); max-height: 78vh; display: flex; flex-direction: column;
