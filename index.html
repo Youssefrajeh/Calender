@@ -127,7 +127,10 @@
 </head>
 <body data-align="right">
   <div class="bg" id="bg1"></div><div class="bg" id="bg2"></div><div id="dim"></div>
-  <video id="logo" src="yr-animated.mp4" autoplay muted loop playsinline aria-hidden="true"></video>
+  <video id="logo" autoplay muted loop playsinline aria-hidden="true">
+    <source src="yr-animated.webm" type="video/webm">
+    <source src="yr-animated.mp4" type="video/mp4">
+  </video>
   <div id="user"></div>
   <svg id="fakeCursor" width="20" height="30" viewBox="0 0 20 30" aria-hidden="true"><path d="M1 1v23l6-6 4 10 4-2-4-9h8z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>
   <aside class="panel">
