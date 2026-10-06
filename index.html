@@ -55,6 +55,11 @@
   .day.out.we { color: var(--faint); }
   .day.sel span { box-shadow: inset 0 0 0 .25vh var(--accent); }
   .day.today span { background: var(--accent); color: #0a0e1c; font-weight: 700; }
+  .day.has-ev::before { content: ""; position: absolute; inset: .5vh; border-radius: 1.2vh; background: rgba(0,0,0,.45);
+                        box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+  .day.has-ev.out::before { background: rgba(0,0,0,.25); }
+  .day span { position: relative; z-index: 1; }
+  .dots { z-index: 1; }
   .dots { position: absolute; bottom: .9vh; display: flex; gap: .4vh; }
   .dots i { width: .8vh; height: .8vh; border-radius: 50%; }
 
@@ -122,6 +127,9 @@
            font-family: "Great Vibes", "Segoe Script", cursive; font-weight: 400; font-size: 7.5vh; line-height: 1.2; padding: 0 2vh;
            background: linear-gradient(90deg, #fff 0%, var(--accent) 50%, #fff 100%); -webkit-background-clip: text; background-clip: text;
            color: transparent; text-shadow: none; filter: drop-shadow(0 .3vh 1.2vh rgba(0,0,0,.55)); }
+  #logo { position: fixed; top: 3vh; left: 3vw; width: 16vh; height: 16vh; border-radius: 50%; object-fit: cover;
+          pointer-events: none; box-shadow: 0 .6vh 3vh rgba(0,0,0,.55), 0 0 2.5vh rgba(140,90,255,.35); }
+  body[data-align="left"] #logo { left: auto; right: 3vw; top: 12vh; } /* calendar takes the left side; sit under the profile pill */
   #fakeCursor { position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; display: none; will-change: transform; }
   body.draw-cursor #fakeCursor.on { display: block; }
 </style>
@@ -129,6 +137,7 @@
 <body data-align="right">
   <div class="bg" id="bg1"></div><div class="bg" id="bg2"></div><div id="dim"></div>
   <div id="owner">Youssef Rajeh</div>
+  <video id="logo" src="yr-animated.mp4" autoplay muted loop playsinline aria-hidden="true"></video>
   <div id="user"></div>
   <svg id="fakeCursor" width="20" height="30" viewBox="0 0 20 30" aria-hidden="true"><path d="M1 1v23l6-6 4 10 4-2-4-9h8z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>
   <aside class="panel">
@@ -219,6 +228,7 @@
       cell.appendChild(el('span', null, d.getDate()));
       const evs = eventsOn(d);
       if (evs.length) {
+        cell.classList.add('has-ev');
         const dots = el('div', 'dots');
         [...new Set(evs.map(e => e.color))].slice(0, 3).forEach(c => { const i = el('i'); i.style.background = c; dots.appendChild(i); });
         cell.appendChild(dots);
